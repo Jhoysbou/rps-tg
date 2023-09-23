@@ -1,7 +1,29 @@
-use actix::{Actor, Context};
+use std::collections::HashMap;
 
-pub struct Server {}
+use actix::{Actor, Addr, Context, Handler};
+
+use crate::{
+    messages::{Close, Connect},
+    types::UserId,
+    websockets::Connection,
+};
+
+pub struct Server {
+    connections: HashMap<UserId, Addr<Connection>>,
+}
 
 impl Actor for Server {
     type Context = Context<Self>;
+}
+
+impl Handler<Connect> for Server {
+    type Result = ();
+
+    fn handle(&mut self, msg: Connect, _ctx: &mut Self::Context) -> Self::Result {
+        if let Some(old_connection) = self.connections.insert(msg.user_id, msg.connection) {
+            old_connection.do_send(Close {
+                reason: "Only one connection per user".to_owned(),
+            });
+        }
+    }
 }

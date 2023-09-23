@@ -974,6 +974,9 @@ dependencies = [
  "actix",
  "actix-web",
  "actix-web-actors",
+ "derive_more",
+ "serde",
+ "serde_json",
  "uuid",
 ]
 

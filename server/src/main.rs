@@ -4,6 +4,8 @@ use actix_web_actors::ws;
 
 mod websockets;
 mod server;
+mod messages;
+mod types;
 
 /// Define HTTP actor
 struct MyWs;
