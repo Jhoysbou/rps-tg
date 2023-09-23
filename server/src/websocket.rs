@@ -37,7 +37,10 @@ where
 
 impl Connection {
     fn send_message<T: Serialize>(&self, msg: WSMessage<T>, ctx: &mut ws::WebsocketContext<Self>) {
-        ctx.text(serde_json::to_string(&msg).unwrap());
+        match serde_json::to_string(&msg) {
+            Ok(txt) => ctx.text(txt),
+            Err(err) => log::error!("Couldn't serialize a message: {}", err),
+        }
     }
 }
 

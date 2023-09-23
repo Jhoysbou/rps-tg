@@ -2,7 +2,7 @@ use actix::{Actor, StreamHandler};
 use actix_web::{web, App, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_web_actors::ws;
 
-mod websockets;
+mod websocket;
 mod server;
 mod messages;
 mod types;
@@ -34,6 +34,8 @@ async fn index(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, E
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    pretty_env_logger::init();
+
     HttpServer::new(|| App::new().route("/ws/", web::get().to(index)))
         .bind(("::", 8080))?
         .run()
