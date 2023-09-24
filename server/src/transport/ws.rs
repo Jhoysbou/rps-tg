@@ -1,12 +1,25 @@
 use std::time::{Duration, Instant};
 
-use actix::{Actor, ActorContext, Addr, AsyncContext, Handler, StreamHandler};
+use actix::{
+    fut, Actor, ActorContext, ActorFutureExt, Addr, AsyncContext, ContextFutureSpawner, Handler,
+    StreamHandler, WrapFuture,
+};
 use actix_web_actors::ws::{self, CloseCode, CloseReason, WebsocketContext};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::messages::Close;
-use crate::{messages::Connect, server::memory_server::Server, types::UserId};
+use super::{
+    client_messages::{ConfirmConnectPayload, IncomingClientMessage, OutgoingClientMessage},
+    messages::{Close, SendClientMessage},
+};
+use crate::{
+    server::{
+        memory_server::Server,
+        messages::{AttachConnection, ProcessClientMessage},
+    },
+    transport::client_messages::ErrorPayload,
+    types::UserId,
+};
 
 const PING_INTERVAL: Duration = Duration::from_secs(5);
 
@@ -19,22 +32,8 @@ pub struct Connection {
     last_ping: Instant,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-enum WSMessageType {
-    ConfirmConnect,
-}
-
-#[derive(Serialize, Debug)]
-struct WSMessage<T>
-where
-    T: Serialize,
-{
-    msg_type: WSMessageType,
-    data: T,
-}
-
 impl Connection {
-    fn send_message<T: Serialize>(&self, msg: WSMessage<T>, ctx: &mut ws::WebsocketContext<Self>) {
+    fn send_message(&self, msg: OutgoingClientMessage, ctx: &mut ws::WebsocketContext<Self>) {
         match serde_json::to_string(&msg) {
             Ok(txt) => ctx.text(txt),
             Err(err) => log::error!("Couldn't serialize a message: {}", err),
@@ -60,16 +59,15 @@ impl Actor for Connection {
         self.ping(ctx);
         let addr = ctx.address();
 
-        self.server.do_send(Connect {
+        self.server.do_send(AttachConnection {
             connection: addr,
             user_id: self.user_id,
         });
 
         self.send_message(
-            WSMessage {
-                msg_type: WSMessageType::ConfirmConnect,
-                data: "Connection established".to_owned(),
-            },
+            OutgoingClientMessage::ConfirmConnect(ConfirmConnectPayload {
+                message: "Connection established".to_owned(),
+            }),
             ctx,
         )
     }
@@ -90,6 +88,14 @@ impl Handler<Close> for Connection {
     }
 }
 
+impl Handler<SendClientMessage> for Connection {
+    type Result = ();
+
+    fn handle(&mut self, msg: SendClientMessage, ctx: &mut Self::Context) -> Self::Result {
+        self.send_message(msg.message, ctx);
+    }
+}
+
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Connection {
     fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
         if msg.is_err() {
@@ -99,7 +105,40 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Connection {
 
         match msg.unwrap() {
             ws::Message::Text(msg) => {
-                // let message: WSMessage = serde_json::from_str(&msg);
+                if let Ok(message) = serde_json::from_str::<IncomingClientMessage>(&msg) {
+                    self.server
+                        .send(ProcessClientMessage {
+                            message,
+                            user_id: self.user_id,
+                        })
+                        .into_actor(self)
+                        .then(|res, conn, ctx| {
+                            if let Err(err) = res {
+                                log::error!("Couldn't send message to actor: {}", err);
+                                return fut::ready(());
+                            }
+                            match res.unwrap() {
+                                Ok(result) => {
+                                    conn.send_message(OutgoingClientMessage::from(result), ctx);
+                                }
+                                Err(err) => {
+                                    log::error!("Process message error: {}", err);
+                                    conn.send_message(
+                                        OutgoingClientMessage::Error(ErrorPayload {
+                                            message: "Internal error: Couldn't process event"
+                                                .to_owned(),
+                                        }),
+                                        ctx,
+                                    );
+                                }
+                            }
+
+                            fut::ready(())
+                        })
+                        .wait(ctx);
+                } else {
+                    log::error!("Couldn parse message: {}", msg);
+                }
             }
 
             // Ignore for now
