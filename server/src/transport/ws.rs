@@ -5,7 +5,6 @@ use actix::{
     StreamHandler, WrapFuture,
 };
 use actix_web_actors::ws::{self, CloseCode, CloseReason, WebsocketContext};
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::{
@@ -14,7 +13,7 @@ use super::{
 };
 use crate::{
     server::{
-        memory_server::Server,
+        actor::Server,
         messages::{AttachConnection, ProcessClientMessage},
     },
     transport::client_messages::ErrorPayload,
@@ -117,6 +116,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Connection {
                                 log::error!("Couldn't send message to actor: {}", err);
                                 return fut::ready(());
                             }
+
                             match res.unwrap() {
                                 Ok(result) => {
                                     conn.send_message(OutgoingClientMessage::from(result), ctx);
@@ -137,7 +137,13 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Connection {
                         })
                         .wait(ctx);
                 } else {
-                    log::error!("Couldn parse message: {}", msg);
+                    log::warn!("Couldn parse message: {}", msg);
+                    self.send_message(
+                        OutgoingClientMessage::Error(ErrorPayload {
+                            message: "Bad request".to_owned(),
+                        }),
+                        ctx,
+                    )
                 }
             }
 

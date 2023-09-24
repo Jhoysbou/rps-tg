@@ -5,6 +5,7 @@ use actix_web_actors::ws;
 mod transport;
 mod server;
 mod types;
+mod room;
 
 /// Define HTTP actor
 struct MyWs;

@@ -1,8 +1,10 @@
 use std::collections::{HashMap, VecDeque};
 
-use actix::{Actor, Addr, Context, Handler};
+use actix::{Actor, Addr, AsyncContext, Context, Handler};
+use uuid::Uuid;
 
 use crate::{
+    room::actor::Room,
     transport::{
         client_messages::{
             IncomingClientMessage::StartMatchmaking, MatchmakingSuccessPayload,
@@ -11,7 +13,7 @@ use crate::{
         messages::{Close, SendClientMessage},
         ws::Connection,
     },
-    types::UserId,
+    types::{RoomId, UserId},
 };
 
 use super::{
@@ -25,6 +27,7 @@ use super::{
 pub struct Server {
     connections: HashMap<UserId, Addr<Connection>>,
     matchmaking_queue: VecDeque<UserId>,
+    rooms: HashMap<RoomId, Addr<Room>>,
 }
 
 impl Actor for Server {
@@ -46,7 +49,7 @@ impl Handler<AttachConnection> for Server {
 impl Handler<ProcessClientMessage> for Server {
     type Result = Result<ProcessClientMessageResult, ServerError>;
 
-    fn handle(&mut self, msg: ProcessClientMessage, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: ProcessClientMessage, ctx: &mut Self::Context) -> Self::Result {
         match msg.message {
             StartMatchmaking(payload) => {
                 if self.matchmaking_queue.len() > 0 {
@@ -59,6 +62,10 @@ impl Handler<ProcessClientMessage> for Server {
                             message: "Opponent connection is not initialized".to_owned(),
                         });
                     }
+
+                    let room_id = Uuid::new_v4();
+                    let room = Room::new(room_id, ctx.address(), payload.user_id, opponent).start();
+                    self.rooms.insert(room_id, room);
 
                     // Send message to the oppont about success matchmaking
                     opponent_connection.unwrap().do_send(SendClientMessage {
