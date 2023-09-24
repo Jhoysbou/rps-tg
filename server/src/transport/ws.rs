@@ -5,7 +5,6 @@ use actix::{
     StreamHandler, WrapFuture,
 };
 use actix_web_actors::ws::{self, CloseCode, CloseReason, WebsocketContext};
-use uuid::Uuid;
 
 use super::{
     client_messages::{ConfirmConnectPayload, IncomingClientMessage, OutgoingClientMessage},
@@ -25,13 +24,20 @@ const PING_INTERVAL: Duration = Duration::from_secs(5);
 const TIMEOUT: Duration = Duration::from_secs(10);
 
 pub struct Connection {
-    id: Uuid,
     user_id: UserId,
     server: Addr<Server>,
     last_ping: Instant,
 }
 
 impl Connection {
+    pub fn new(user_id: UserId, server: Addr<Server>) -> Self {
+        Self {
+            user_id,
+            server,
+            last_ping: Instant::now(),
+        }
+    }
+
     fn send_message(&self, msg: OutgoingClientMessage, ctx: &mut ws::WebsocketContext<Self>) {
         match serde_json::to_string(&msg) {
             Ok(txt) => ctx.text(txt),

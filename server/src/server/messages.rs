@@ -1,4 +1,5 @@
 use actix::{Addr, Message};
+use uuid::Uuid;
 
 use crate::{
     server::error::ServerError,
@@ -31,5 +32,6 @@ pub enum MatchmakingStatus {
 
 pub struct StartMatchmakingResultPayload {
     pub opponent: Option<UserId>,
+    pub room: Option<Uuid>,
     pub status: MatchmakingStatus,
 }

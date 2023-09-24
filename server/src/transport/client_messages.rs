@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::{
     server::messages::{MatchmakingStatus, ProcessClientMessageResult},
@@ -26,6 +27,7 @@ impl From<ProcessClientMessageResult> for OutgoingClientMessage {
                 MatchmakingStatus::Found => {
                     OutgoingClientMessage::MatchmakingSuccess(MatchmakingSuccessPayload {
                         opponent: payload.opponent.unwrap(),
+                        room: payload.room.unwrap(),
                     })
                 }
             },
@@ -50,5 +52,6 @@ pub struct StartMatchmakingPayload {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MatchmakingSuccessPayload {
+    pub room: Uuid,
     pub opponent: UserId,
 }

@@ -30,6 +30,16 @@ pub struct Server {
     rooms: HashMap<RoomId, Addr<Room>>,
 }
 
+impl Server {
+    pub fn new() -> Self {
+        Self {
+            connections: HashMap::new(),
+            matchmaking_queue: VecDeque::new(),
+            rooms: HashMap::new(),
+        }
+    }
+}
+
 impl Actor for Server {
     type Context = Context<Self>;
 }
@@ -71,6 +81,7 @@ impl Handler<ProcessClientMessage> for Server {
                     opponent_connection.unwrap().do_send(SendClientMessage {
                         message: OutgoingClientMessage::MatchmakingSuccess(
                             MatchmakingSuccessPayload {
+                                room: room_id,
                                 opponent: msg.user_id,
                             },
                         ),
@@ -80,6 +91,7 @@ impl Handler<ProcessClientMessage> for Server {
                         StartMatchmakingResultPayload {
                             opponent: Some(opponent),
                             status: MatchmakingStatus::Found,
+                            room: Some(room_id),
                         },
                     ))
                 } else {
@@ -89,6 +101,7 @@ impl Handler<ProcessClientMessage> for Server {
                         StartMatchmakingResultPayload {
                             opponent: None,
                             status: MatchmakingStatus::Searching,
+                            room: None,
                         },
                     ))
                 }

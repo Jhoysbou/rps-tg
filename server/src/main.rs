@@ -1,42 +1,42 @@
-use actix::{Actor, StreamHandler};
-use actix_web::{web, App, Error, HttpRequest, HttpResponse, HttpServer};
+use actix::{Actor, Addr};
+use actix_web::{web::{Payload, Data, Path}, Error, HttpRequest, HttpResponse, get, HttpServer, App};
 use actix_web_actors::ws;
+use server::actor::Server;
+use types::UserId;
+
+use crate::transport::ws::Connection;
 
 mod transport;
 mod server;
 mod types;
 mod room;
 
-/// Define HTTP actor
-struct MyWs;
+#[get("/ws/{user_id}")]
+pub async fn start_connection(
+    req: HttpRequest,
+    stream: Payload,
+    user_id: Path<UserId>,
+    srv: Data<Addr<Server>>,
+) -> Result<HttpResponse, Error> {
+    let conn = Connection::new(
+        *user_id,
+        srv.get_ref().clone(),
+    );
 
-impl Actor for MyWs {
-    type Context = ws::WebsocketContext<Self>;
-}
-
-/// Handler for ws::Message message
-impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MyWs {
-    fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
-        match msg {
-            Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
-            Ok(ws::Message::Text(text)) => ctx.text(text),
-            Ok(ws::Message::Binary(bin)) => ctx.binary(bin),
-            _ => (),
-        }
-    }
-}
-
-async fn index(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
-    let resp = ws::start(MyWs {}, &req, stream);
-    println!("{:?}", resp);
-    resp
+    let resp = ws::start(conn, &req, stream)?;
+    Ok(resp)
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     pretty_env_logger::init();
+    let server = Server::new().start();
 
-    HttpServer::new(|| App::new().route("/ws/", web::get().to(index)))
+    HttpServer::new(move ||
+        App::new()
+            .service(start_connection)
+            .app_data(server.clone())
+        )
         .bind(("::", 8080))?
         .run()
         .await
