@@ -4,11 +4,10 @@ use actix::{Actor, Addr, AsyncContext, Context, Handler};
 use uuid::Uuid;
 
 use crate::{
-    room::actor::Room,
+    room::{actor::Room, messages::MakeAction},
     transport::{
         client_messages::{
-            IncomingClientMessage::StartMatchmaking, MatchmakingSuccessPayload,
-            OutgoingClientMessage,
+            IncomingClientMessage, MatchmakingSuccessPayload, OutgoingClientMessage,
         },
         messages::{Close, SendClientMessage},
         ws::Connection,
@@ -61,7 +60,7 @@ impl Handler<ProcessClientMessage> for Server {
 
     fn handle(&mut self, msg: ProcessClientMessage, ctx: &mut Self::Context) -> Self::Result {
         match msg.message {
-            StartMatchmaking(payload) => {
+            IncomingClientMessage::StartMatchmaking => {
                 if self.matchmaking_queue.len() > 0 {
                     let opponent = self.matchmaking_queue.pop_front().unwrap();
                     let opponent_connection = self.connections.get(&opponent);
@@ -74,10 +73,10 @@ impl Handler<ProcessClientMessage> for Server {
                     }
 
                     let room_id = Uuid::new_v4();
-                    let room = Room::new(room_id, ctx.address(), payload.user_id, opponent).start();
+                    let room = Room::new(room_id, ctx.address(), msg.user_id, opponent).start();
                     self.rooms.insert(room_id, room);
 
-                    // Send message to the oppont about success matchmaking
+                    // Send message to the opponent about success matchmaking
                     opponent_connection.unwrap().do_send(SendClientMessage {
                         message: OutgoingClientMessage::MatchmakingSuccess(
                             MatchmakingSuccessPayload {
@@ -95,7 +94,7 @@ impl Handler<ProcessClientMessage> for Server {
                         },
                     ))
                 } else {
-                    self.matchmaking_queue.push_back(payload.user_id);
+                    self.matchmaking_queue.push_back(msg.user_id);
 
                     Ok(ProcessClientMessageResult::StartMatchmakingResult(
                         StartMatchmakingResultPayload {
@@ -104,6 +103,18 @@ impl Handler<ProcessClientMessage> for Server {
                             room: None,
                         },
                     ))
+                }
+            }
+            IncomingClientMessage::MakeAction(payload) => {
+                if let Some(room) = self.rooms.get(&payload.room) {
+                    room.send(MakeAction {
+                        action: payload.action,
+                        user_id: msg.user_id,
+                    });
+                } else {
+                    Err(ServerError {
+                        message: "No such room".to_owned(),
+                    })
                 }
             }
         }

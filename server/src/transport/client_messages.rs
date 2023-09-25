@@ -1,22 +1,28 @@
+use derive_more::Display;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
+    room::actor::Action,
     server::messages::{MatchmakingStatus, ProcessClientMessageResult},
     types::UserId,
 };
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(tag = "type", content = "data")]
 pub enum IncomingClientMessage {
-    StartMatchmaking(StartMatchmakingPayload),
+    StartMatchmaking,
+    MakeAction(MakeActionPayload),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(tag = "type", content = "data")]
 pub enum OutgoingClientMessage {
     Error(ErrorPayload),
     ConfirmConnect(ConfirmConnectPayload),
     MatchmakingSuccess(MatchmakingSuccessPayload),
     MatchmakingStarted,
+    MakeActionSuccess,
 }
 
 impl From<ProcessClientMessageResult> for OutgoingClientMessage {
@@ -46,8 +52,9 @@ pub struct ConfirmConnectPayload {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct StartMatchmakingPayload {
-    pub user_id: UserId,
+pub struct MakeActionPayload {
+    pub room: Uuid,
+    pub action: Action,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

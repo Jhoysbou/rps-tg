@@ -111,6 +111,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Connection {
         match msg.unwrap() {
             ws::Message::Text(msg) => {
                 if let Ok(message) = serde_json::from_str::<IncomingClientMessage>(&msg) {
+                    log::debug!("Event from user {} with type {:#?}", self.user_id, message);
                     self.server
                         .send(ProcessClientMessage {
                             message,
@@ -159,10 +160,14 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Connection {
             ws::Message::Continuation(_) => (),
 
             ws::Message::Ping(_) => {
+                log::debug!("Ping from user {}", self.user_id);
                 self.last_ping = Instant::now();
                 ctx.pong(b"pong");
             }
-            ws::Message::Pong(_) => self.last_ping = Instant::now(),
+            ws::Message::Pong(_) => {
+                log::debug!("Pong from user {}", self.user_id);
+                self.last_ping = Instant::now();
+            }
             // TODO notify the server
             ws::Message::Close(msg) => ctx.close(msg),
             ws::Message::Nop => (),

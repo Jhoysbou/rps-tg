@@ -30,12 +30,14 @@ pub async fn start_connection(
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     pretty_env_logger::init();
+    log::info!("Starting server...");
+
     let server = Server::new().start();
 
     HttpServer::new(move ||
         App::new()
             .service(start_connection)
-            .app_data(server.clone())
+            .app_data(Data::new(server.clone()))
         )
         .bind(("::", 8080))?
         .run()
