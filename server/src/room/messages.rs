@@ -23,10 +23,12 @@ pub struct ActionHistory {
 }
 
 pub struct RoundFinishedResult {
-    pub winner: UserId,
-    pub acions: [ActionHistory; 2],
+    pub winner: Option<UserId>,
+    pub actions: [ActionHistory; 2],
+    pub next_round_cound: u8,
 }
 
 pub struct GameFinishedResult {
     pub winner: Option<UserId>,
+    pub actions: [ActionHistory; 2],
 }

@@ -9,7 +9,9 @@ use crate::{server::actor::Server, types::UserId};
 
 use super::{
     error::RoomError,
-    messages::{MakeAction, MakeActionResult},
+    messages::{
+        ActionHistory, GameFinishedResult, MakeAction, MakeActionResult, RoundFinishedResult,
+    },
 };
 
 const WINS_REQURED: u8 = 2;
@@ -33,19 +35,50 @@ impl Round {
         let first_user = self.actions.first().unwrap();
         let second_user = self.actions.last().unwrap();
 
+        let winner;
+
         if (first_user.action as u8 + 1u8) % 3 == second_user.action as u8 {
-            return Some(second_user.user_id);
+            winner = Some(second_user.user_id);
         } else if first_user.action as u8 == second_user.action as u8 {
-            return None;
+            winner = None;
         } else {
-            return Some(first_user.user_id);
+            winner = Some(first_user.user_id);
         }
+
+        self.winner = winner;
+        self.winner
+    }
+
+    fn make_action_history(&self) -> Result<[ActionHistory; 2], RoomError> {
+        if self.actions.len() != 2 {
+            log::error!("More then 2 action for room");
+            return Err(RoomError {
+                message: "More then 2 action for room".to_owned(),
+            });
+        }
+
+        let res: [ActionHistory; 2];
+
+        for (i, user_action) in self.actions.iter().enumerate() {
+            res[i] = Into::into(*user_action);
+        }
+
+        Ok(res)
     }
 }
 
 struct UserAction {
     user_id: UserId,
     action: Action,
+}
+
+impl Into<ActionHistory> for UserAction {
+    fn into(self) -> ActionHistory {
+        ActionHistory {
+            user_id: self.user_id,
+            action: self.action,
+        }
+    }
 }
 
 enum RoundStatus {
@@ -73,15 +106,19 @@ impl Room {
             server,
             users: [first_user, second_user],
             rounds_count: 0,
-            rounds: vec![Round {
-                status: RoundStatus::InProgress,
-                actions: vec![],
-                winner: None,
-            }],
+            rounds: vec![Room::new_round()],
         }
     }
 
-    fn is_game_over(&self) -> Option<UserId> {
+    fn new_round() -> Round {
+        Round {
+            status: RoundStatus::InProgress,
+            actions: vec![],
+            winner: None,
+        }
+    }
+
+    fn is_game_over(&self) -> (bool, Option<UserId>) {
         let winner = self
             .rounds
             .iter()
@@ -96,12 +133,14 @@ impl Room {
             .map(|(user_id, _)| *user_id)
             .collect::<Vec<UserId>>();
 
-        if winner.len() > 1 {
-            log::error!("Found more then one winner. Something is wrong");
-            return None;
+        if winner.len() == 0 {
+            return (false, None);
+        } else if winner.len() > 1 {
+            // Drow
+            return (true, None);
         }
 
-        winner.first().cloned()
+        (true, winner.first().cloned())
     }
 }
 
@@ -109,7 +148,7 @@ impl Handler<MakeAction> for Room {
     type Result = Result<MakeActionResult, RoomError>;
 
     fn handle(&mut self, msg: MakeAction, ctx: &mut Self::Context) -> Self::Result {
-        let round = self.rounds.last();
+        let round = self.rounds.last_mut();
         if round.is_none() {
             log::error!("Room initialized without first round. Use room::new()");
             return Err(RoomError {
@@ -149,6 +188,28 @@ impl Handler<MakeAction> for Room {
         if round.actions.len() == 2 {
             let winner = round.decide_winner();
             self.rounds_count += 1;
+
+            let (is_finished, game_winner) = self.is_game_over();
+
+            let action_history = match round.make_action_history() {
+                Ok(actions) => actions,
+                Err(e) => return Err(e),
+            };
+
+            if is_finished {
+                return Ok(MakeActionResult::GameFinished(GameFinishedResult {
+                    winner: game_winner,
+                    actions: action_history,
+                }));
+            }
+
+            return Ok(MakeActionResult::RoundFinished(RoundFinishedResult {
+                winner,
+                actions: action_history,
+                next_round_cound: self.rounds_count,
+            }));
         }
+
+        Ok(MakeActionResult::Accepted)
     }
 }

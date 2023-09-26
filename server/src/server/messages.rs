@@ -2,6 +2,7 @@ use actix::{Addr, Message};
 use uuid::Uuid;
 
 use crate::{
+    room::messages::MakeActionResult,
     server::error::ServerError,
     transport::{client_messages::IncomingClientMessage, ws::Connection},
     types::UserId,
@@ -23,6 +24,7 @@ pub struct ProcessClientMessage {
 
 pub enum ProcessClientMessageResult {
     StartMatchmakingResult(StartMatchmakingResultPayload),
+    MakeActionResult(MakeActionResult),
 }
 
 pub enum MatchmakingStatus {

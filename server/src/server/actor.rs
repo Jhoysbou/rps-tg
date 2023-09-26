@@ -1,6 +1,9 @@
 use std::collections::{HashMap, VecDeque};
 
-use actix::{Actor, Addr, AsyncContext, Context, Handler};
+use actix::{
+    fut, Actor, ActorFutureExt, Addr, AsyncContext, Context, ContextFutureSpawner, Handler,
+    WrapFuture,
+};
 use uuid::Uuid;
 
 use crate::{
@@ -110,7 +113,30 @@ impl Handler<ProcessClientMessage> for Server {
                     room.send(MakeAction {
                         action: payload.action,
                         user_id: msg.user_id,
-                    });
+                    })
+                    .into_actor(self)
+                    .then(|res, room, ctx| {
+                        if let Err(err) = res {
+                            log::error!("Couldn't send message to room: {}", err);
+                            return fut::ready(Err(ServerError {
+                                message: "Internal error, try again".to_owned(),
+                            }));
+                        }
+
+                        let res = match res.unwrap() {
+                            Ok(make_action_res) => Ok(
+                                ProcessClientMessageResult::MakeActionResult(make_action_res),
+                            ),
+                            Err(err) => Err(ServerError::from(err)),
+                        };
+
+                        fut::ready(res)
+                    })
+                    .wait(ctx);
+
+                    Err(ServerError {
+                        message: "".to_owned(),
+                    })
                 } else {
                     Err(ServerError {
                         message: "No such room".to_owned(),

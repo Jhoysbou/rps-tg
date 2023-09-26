@@ -144,7 +144,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Connection {
                         })
                         .wait(ctx);
                 } else {
-                    log::warn!("Couldn parse message: {}", msg);
+                    log::warn!("Couldn't parse message: {}", msg);
                     self.send_message(
                         OutgoingClientMessage::Error(ErrorPayload {
                             message: "Bad request".to_owned(),
