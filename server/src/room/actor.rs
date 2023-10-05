@@ -29,6 +29,14 @@ struct Round {
 }
 
 impl Round {
+    pub fn default() -> Self {
+        Self {
+            status: RoundStatus::InProgress,
+            actions: vec![],
+            winner: None,
+        }
+    }
+
     fn add_action(&mut self, action: UserAction) {
         self.actions.push(action);
     }
@@ -50,12 +58,16 @@ impl Round {
         self.winner = winner;
         self.winner
     }
+
+    fn finish(&mut self) {
+        self.status = RoundStatus::Completed;
+    }
 }
 
 #[derive(Clone, Copy)]
 pub struct UserAction {
-    user_id: UserId,
-    action: Action,
+    pub user_id: UserId,
+    pub action: Action,
 }
 
 enum RoundStatus {
@@ -64,7 +76,6 @@ enum RoundStatus {
 }
 
 #[derive(Serialize, Deserialize, Debug, Display, Clone, Copy)]
-#[serde(untagged)]
 #[repr(u8)]
 pub enum Action {
     Rock,
@@ -83,16 +94,12 @@ impl Room {
             server,
             users: [first_user, second_user],
             rounds_count: 0,
-            rounds: vec![Room::new_round()],
+            rounds: vec![Round::default()],
         }
     }
 
-    fn new_round() -> Round {
-        Round {
-            status: RoundStatus::InProgress,
-            actions: vec![],
-            winner: None,
-        }
+    fn start_new_round(&mut self) {
+        self.rounds.push(Round::default());
     }
 
     fn is_game_over(&self) -> (bool, Option<UserId>) {
@@ -161,6 +168,7 @@ impl Handler<MakeAction> for Room {
         if round.actions.len() == 2 {
             let winner = round.decide_winner();
             self.rounds_count += 1;
+            round.finish();
 
             let (is_finished, game_winner) = self.is_game_over();
 
@@ -170,6 +178,8 @@ impl Handler<MakeAction> for Room {
                     winner: game_winner,
                 }));
             }
+
+            self.start_new_round();
 
             return Ok(MakeActionResult::RoundFinished(RoundFinishedResult {
                 winner,

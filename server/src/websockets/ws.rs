@@ -109,8 +109,8 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Connection {
         }
 
         match msg.unwrap() {
-            ws::Message::Text(msg) => {
-                if let Ok(message) = serde_json::from_str::<IncomingClientMessage>(&msg) {
+            ws::Message::Text(msg) => match serde_json::from_str::<IncomingClientMessage>(&msg) {
+                Ok(message) => {
                     log::debug!("Event from user {} with type {:#?}", self.user_id, message);
                     self.server
                         .send(ProcessClientMessage {
@@ -143,8 +143,9 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Connection {
                             fut::ready(())
                         })
                         .wait(ctx);
-                } else {
-                    log::warn!("Couldn't parse message: {}", msg);
+                }
+                Err(err) => {
+                    log::warn!("Couldn't parse message: {} because of {}", msg, err);
                     self.send_message(
                         OutgoingClientMessage::Error(ErrorPayload {
                             message: "Bad request".to_owned(),
@@ -152,7 +153,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Connection {
                         ctx,
                     )
                 }
-            }
+            },
 
             // Ignore for now
             ws::Message::Binary(_) => (),
