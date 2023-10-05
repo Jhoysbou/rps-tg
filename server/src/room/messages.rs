@@ -2,7 +2,10 @@ use actix::Message;
 
 use crate::types::UserId;
 
-use super::{actor::Action, error::RoomError};
+use super::{
+    actor::{Action, UserAction},
+    error::RoomError,
+};
 
 #[derive(Message)]
 #[rtype(result = "Result<MakeActionResult, RoomError>")]
@@ -17,18 +20,13 @@ pub enum MakeActionResult {
     GameFinished(GameFinishedResult),
 }
 
-pub struct ActionHistory {
-    user_id: UserId,
-    action: Action,
-}
-
 pub struct RoundFinishedResult {
     pub winner: Option<UserId>,
-    pub actions: [ActionHistory; 2],
+    pub actions: Vec<UserAction>,
     pub next_round_cound: u8,
 }
 
 pub struct GameFinishedResult {
     pub winner: Option<UserId>,
-    pub actions: [ActionHistory; 2],
+    pub actions: Vec<UserAction>,
 }

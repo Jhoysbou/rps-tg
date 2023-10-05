@@ -4,8 +4,8 @@ use uuid::Uuid;
 use crate::{
     room::messages::MakeActionResult,
     server::error::ServerError,
-    transport::{client_messages::IncomingClientMessage, ws::Connection},
     types::UserId,
+    websockets::{client_messages::IncomingClientMessage, ws::Connection},
 };
 
 #[derive(Message)]

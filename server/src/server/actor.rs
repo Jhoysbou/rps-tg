@@ -1,21 +1,18 @@
 use std::collections::{HashMap, VecDeque};
 
-use actix::{
-    fut, Actor, ActorFutureExt, Addr, AsyncContext, Context, ContextFutureSpawner, Handler,
-    WrapFuture,
-};
+use actix::*;
 use uuid::Uuid;
 
 use crate::{
     room::{actor::Room, messages::MakeAction},
-    transport::{
+    types::{RoomId, UserId},
+    websockets::{
         client_messages::{
             IncomingClientMessage, MatchmakingSuccessPayload, OutgoingClientMessage,
         },
         messages::{Close, SendClientMessage},
         ws::Connection,
     },
-    types::{RoomId, UserId},
 };
 
 use super::{
@@ -59,7 +56,7 @@ impl Handler<AttachConnection> for Server {
 }
 
 impl Handler<ProcessClientMessage> for Server {
-    type Result = Result<ProcessClientMessageResult, ServerError>;
+    type Result = ResponseActFuture<Self, Result<ProcessClientMessageResult, ServerError>>;
 
     fn handle(&mut self, msg: ProcessClientMessage, ctx: &mut Self::Context) -> Self::Result {
         match msg.message {
@@ -70,9 +67,9 @@ impl Handler<ProcessClientMessage> for Server {
 
                     if opponent_connection.is_none() {
                         log::error!("Connection not found!");
-                        return Err(ServerError {
+                        return Box::pin(fut::ready(Err(ServerError {
                             message: "Opponent connection is not initialized".to_owned(),
-                        });
+                        })));
                     }
 
                     let room_id = Uuid::new_v4();
@@ -89,58 +86,59 @@ impl Handler<ProcessClientMessage> for Server {
                         ),
                     });
 
-                    Ok(ProcessClientMessageResult::StartMatchmakingResult(
-                        StartMatchmakingResultPayload {
-                            opponent: Some(opponent),
-                            status: MatchmakingStatus::Found,
-                            room: Some(room_id),
-                        },
-                    ))
+                    Box::pin(fut::ready(Ok(
+                        ProcessClientMessageResult::StartMatchmakingResult(
+                            StartMatchmakingResultPayload {
+                                opponent: Some(opponent),
+                                status: MatchmakingStatus::Found,
+                                room: Some(room_id),
+                            },
+                        ),
+                    )))
                 } else {
                     self.matchmaking_queue.push_back(msg.user_id);
 
-                    Ok(ProcessClientMessageResult::StartMatchmakingResult(
-                        StartMatchmakingResultPayload {
-                            opponent: None,
-                            status: MatchmakingStatus::Searching,
-                            room: None,
-                        },
-                    ))
+                    Box::pin(fut::ready(Ok(
+                        ProcessClientMessageResult::StartMatchmakingResult(
+                            StartMatchmakingResultPayload {
+                                opponent: None,
+                                status: MatchmakingStatus::Searching,
+                                room: None,
+                            },
+                        ),
+                    )))
                 }
             }
             IncomingClientMessage::MakeAction(payload) => {
                 if let Some(room) = self.rooms.get(&payload.room) {
-                    room.send(MakeAction {
-                        action: payload.action,
-                        user_id: msg.user_id,
-                    })
-                    .into_actor(self)
-                    .then(|res, room, ctx| {
-                        if let Err(err) = res {
-                            log::error!("Couldn't send message to room: {}", err);
-                            return fut::ready(Err(ServerError {
-                                message: "Internal error, try again".to_owned(),
-                            }));
-                        }
+                    Box::pin(
+                        room.send(MakeAction {
+                            action: payload.action,
+                            user_id: msg.user_id,
+                        })
+                        .into_actor(self)
+                        .then(|res, _room, _ctx| {
+                            if let Err(err) = res {
+                                log::error!("Couldn't send message to room: {}", err);
+                                return fut::ready(Err(ServerError {
+                                    message: "Internal error, try again".to_owned(),
+                                }));
+                            }
 
-                        let res = match res.unwrap() {
-                            Ok(make_action_res) => Ok(
-                                ProcessClientMessageResult::MakeActionResult(make_action_res),
-                            ),
-                            Err(err) => Err(ServerError::from(err)),
-                        };
+                            let res = match res.unwrap() {
+                                Ok(make_action_res) => Ok(
+                                    ProcessClientMessageResult::MakeActionResult(make_action_res),
+                                ),
+                                Err(err) => Err(ServerError::from(err)),
+                            };
 
-                        fut::ready(res)
-                    })
-                    .wait(ctx);
-
-                    Err(ServerError {
-                        message: "".to_owned(),
-                    })
+                            fut::ready(res)
+                        }),
+                    )
                 } else {
-                    Err(ServerError {
+                    Box::pin(fut::ready(Err(ServerError {
                         message: "No such room".to_owned(),
-                    })
+                    })))
                 }
             }
         }

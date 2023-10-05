@@ -15,8 +15,8 @@ use crate::{
         actor::Server,
         messages::{AttachConnection, ProcessClientMessage},
     },
-    transport::client_messages::ErrorPayload,
     types::UserId,
+    websockets::client_messages::ErrorPayload,
 };
 
 const PING_INTERVAL: Duration = Duration::from_secs(5);

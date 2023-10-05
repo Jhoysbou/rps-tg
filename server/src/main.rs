@@ -4,9 +4,9 @@ use actix_web_actors::ws;
 use server::actor::Server;
 use types::UserId;
 
-use crate::transport::ws::Connection;
+use crate::websockets::ws::Connection;
 
-mod transport;
+mod websockets;
 mod server;
 mod types;
 mod room;
