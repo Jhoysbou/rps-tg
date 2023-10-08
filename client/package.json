@@ -12,6 +12,7 @@
     "devDependencies": {
         "@sveltejs/vite-plugin-svelte": "^2.4.2",
         "@tsconfig/svelte": "^5.0.0",
+        "@types/promise-retry": "^1.1.4",
         "svelte": "^4.0.5",
         "svelte-check": "^3.4.6",
         "tslib": "^2.6.0",
@@ -19,6 +20,8 @@
         "vite": "^4.4.5"
     },
     "dependencies": {
+        "eventemitter3": "^5.0.1",
+        "promise-retry": "^2.0.1",
         "svelte-spa-router": "^3.3.0"
     }
 }

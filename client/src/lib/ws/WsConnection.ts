@@ -1,6 +1,7 @@
 import EventEmitter from 'eventemitter3';
 import promiseRetry from 'promise-retry';
 import { WS_CLOSE_STATUS_NORMAL } from './constants';
+import { confirmConnectType } from '../types/messages';
 
 export interface WsConnection {
     once(event: 'connect', listener: () => void): this;
@@ -21,10 +22,8 @@ export interface WsConnection {
 
 export type WsConnectionConfig = {
     url: string;
-    token?: string;
 };
 
-const defaultConfig: Required<Omit<WsConnectionConfig, 'url' | 'token'>> = {};
 
 export class WsConnection extends EventEmitter {
     private ws: WebSocket | null = null;
@@ -33,10 +32,7 @@ export class WsConnection extends EventEmitter {
     constructor(config: WsConnectionConfig) {
         super();
 
-        this.config = {
-            ...defaultConfig,
-            ...config,
-        };
+        this.config = config;
     }
 
     async connect() {
@@ -75,17 +71,15 @@ export class WsConnection extends EventEmitter {
 
     private connectFn() {
         return new Promise<void>((resolve, reject) => {
-            const connectUrl = this.config.token ? `${this.config.url}?token=${this.config.token}` : this.config.url;
-            this.ws = new WebSocket(connectUrl);
+            this.ws = new WebSocket(this.config.url);
 
-            // TODO: This is crutch. Remove it when we will rewrite nestjs @WebSocketGateway
             const messageHandler = (event: MessageEvent) => {
                 const message = JSON.parse(event.data);
-                const messageEvent = message.event;
+                const messageEvent = message.type;
 
-                if (messageEvent === connectResponseEvent) {
+                if (messageEvent === confirmConnectType) {
                     this.ws?.removeEventListener('message', messageHandler);
-                    message.data.status === 'ok' ? resolve() : reject(new Error(message.data.error));
+                    message.data.message === 'Connection established' ? resolve() : reject(new Error(message.data.error));
                 }
             };
             this.ws.addEventListener('message', messageHandler);
