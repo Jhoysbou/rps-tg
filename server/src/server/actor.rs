@@ -1,10 +1,14 @@
 use std::collections::{HashMap, VecDeque};
 
 use actix::*;
+use std::convert::From;
 use uuid::Uuid;
 
 use crate::{
-    room::{actor::Room, messages::MakeAction},
+    room::{
+        actor::Room,
+        messages::{MakeAction, MakeActionResult},
+    },
     types::{RoomId, UserId},
     websockets::{
         client_messages::{
@@ -117,7 +121,7 @@ impl Handler<ProcessClientMessage> for Server {
                             user_id: msg.user_id,
                         })
                         .into_actor(self)
-                        .then(|res, _room, _ctx| {
+                        .then(move |res, server, _ctx| {
                             if let Err(err) = res {
                                 log::error!("Couldn't send message to room: {}", err);
                                 return fut::ready(Err(ServerError {
@@ -126,9 +130,48 @@ impl Handler<ProcessClientMessage> for Server {
                             }
 
                             let res = match res.unwrap() {
-                                Ok(make_action_res) => Ok(
-                                    ProcessClientMessageResult::MakeActionResult(make_action_res),
-                                ),
+                                Ok(ref make_action_res) => {
+                                    match make_action_res {
+                                        MakeActionResult::RoundFinished(result) => {
+                                            let opponent = result
+                                                .users
+                                                .iter()
+                                                .find(|u| **u != msg.user_id)
+                                                .unwrap();
+                                            let opponent_connection =
+                                                server.connections.get(&opponent).unwrap();
+
+                                            opponent_connection.do_send(SendClientMessage {
+                                                message: OutgoingClientMessage::from(
+                                                    ProcessClientMessageResult::MakeActionResult(
+                                                        make_action_res.clone(),
+                                                    ),
+                                                ),
+                                            })
+                                        }
+                                        MakeActionResult::GameFinished(result) => {
+                                            let opponent = result
+                                                .users
+                                                .iter()
+                                                .find(|u| **u != msg.user_id)
+                                                .unwrap();
+                                            let opponent_connection =
+                                                server.connections.get(&opponent).unwrap();
+
+                                            opponent_connection.do_send(SendClientMessage {
+                                                message: OutgoingClientMessage::from(
+                                                    ProcessClientMessageResult::MakeActionResult(
+                                                        make_action_res.clone(),
+                                                    ),
+                                                ),
+                                            })
+                                        }
+                                        _ => (),
+                                    };
+                                    Ok(ProcessClientMessageResult::MakeActionResult(
+                                        make_action_res.clone(),
+                                    ))
+                                }
                                 Err(err) => Err(ServerError::from(err)),
                             };
 

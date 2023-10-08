@@ -14,19 +14,24 @@ pub struct MakeAction {
     pub user_id: UserId,
 }
 
+#[derive(Clone)]
 pub enum MakeActionResult {
     Accepted,
     RoundFinished(RoundFinishedResult),
     GameFinished(GameFinishedResult),
 }
 
+#[derive(Clone)]
 pub struct RoundFinishedResult {
     pub winner: Option<UserId>,
     pub actions: Vec<UserAction>,
     pub next_round_cound: u8,
+    pub users: [UserId; 2],
 }
 
+#[derive(Clone)]
 pub struct GameFinishedResult {
     pub winner: Option<UserId>,
     pub actions: Vec<UserAction>,
+    pub users: [UserId; 2],
 }

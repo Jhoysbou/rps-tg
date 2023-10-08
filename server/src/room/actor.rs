@@ -176,6 +176,7 @@ impl Handler<MakeAction> for Room {
                 return Ok(MakeActionResult::GameFinished(GameFinishedResult {
                     actions,
                     winner: game_winner,
+                    users: self.users,
                 }));
             }
 
@@ -185,6 +186,7 @@ impl Handler<MakeAction> for Room {
                 winner,
                 actions,
                 next_round_cound: self.rounds_count,
+                users: self.users,
             }));
         }
 
