@@ -1,4 +1,4 @@
 use uuid::Uuid;
 
-pub type UserId = i32;
+pub type UserId = u64;
 pub type RoomId = Uuid;
