@@ -23,6 +23,14 @@
 <button on:click={startMatchmaking}>Start game</button>
 
 <style>
+    @keyframes shrink {
+        from {
+            border-radius: 0;
+            height: 100vh;
+        }
+        to {
+        }
+    }
     .header {
         position: relative;
         left: -15vw;
@@ -32,6 +40,12 @@
         height: 50vh;
         background: linear-gradient(#5c5470, #b9b4c7);
         border-radius: 0 0 50rem 50rem;
+
+        animation-duration: 0.5s;
+        animation-name: shrink;
+        animation-iteration-count: initial;
+        animation-direction: alternate;
+        animation-fill-mode: forwards;
     }
     .name {
         font-size: 1.3em;
@@ -46,21 +60,5 @@
     .rock,
     .scissors {
         padding-top: 2em;
-    }
-
-    @keyframes cycle-rock {
-        from {
-        }
-        33% {
-            margin-left: 2em;
-        }
-        66% {
-            margin-top: 0em;
-            margin-left: 1em;
-        }
-        to {
-            margin-top: 2em;
-            margin-left: 0em;
-        }
     }
 </style>
