@@ -3,7 +3,7 @@ import { readable } from "svelte/store";
 export type TelegramInitData = {
     query_id: string,
     user: {
-        id: string,
+        id: number,
         first_name: string,
         last_name: string,
         language_code: string,
@@ -13,9 +13,24 @@ export type TelegramInitData = {
     hash: string,
 }
 
-export const parseQuery = (queryString: string): TelegramInitData => {
-    const querySplitted = decodeURI(queryString).split('&')
+const generateRandomId = () => {
+    return Math.floor(Math.random() * 2 ** 16);
+}
+const id = generateRandomId()
+
+export const parseQuery = (queryString?: string): Partial<TelegramInitData> => {
+    if (!queryString) {
+        return {
+            user: {
+                id: id,
+                first_name: "John",
+                last_name: "Doe",
+            },
+        }
+    }
+    console.log('after')
     const result = {};
+    const querySplitted = decodeURI(queryString).split('&')
     // console.log(querySplitted);
     for (let i in querySplitted) {
         // console.log(querySplitted[i])

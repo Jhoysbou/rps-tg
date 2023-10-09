@@ -78,13 +78,13 @@ export type MakeActionSuccessMessage = Message<typeof makeActionSuccessType, Mak
 /*
 * Round finished
 * */
-type ActionHistory = {
-    user_id: string,
+export type ActionHistory = {
+    user_id: number,
     action: Action,
 }
 
 export type RoundFinishedPayload = {
-    winner: string,
+    winner: number,
     actions: ActionHistory[],
     next_round_count: number,
 };
@@ -97,7 +97,7 @@ export type RoundFinishedMessage = Message<typeof roundFinishedType, RoundFinish
 * Game finished
 * */
 export type GameFinishedPayload = {
-    winner: string,
+    winner: number,
     actions: ActionHistory[],
 };
 

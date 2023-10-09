@@ -1,46 +1,102 @@
 <script lang="ts">
     import { messenger } from "../main";
+    import { telegramInitData, type TelegramInitData } from "../stores";
     import { RoomState } from "./constants";
-    import { Action } from "./types/messages";
+    import Loader from "./room/Loader.svelte";
+    import { Action, type ActionHistory } from "./types/messages";
 
     export let params;
     let { id, ...other } = params;
 
+    let data: Partial<TelegramInitData> = {};
+    telegramInitData.subscribe((value) => (data = value));
+
     let state: RoomState = RoomState.Choosing;
+    let isWinner = false;
+    let actionHistory: Action[] = [];
+    let opponentActionHistory: Action[] = [];
+    let wins = 0;
+    let opponentWins = 0;
+
+    const updateOpponentHistory = (actions: ActionHistory[]) => {
+        const opponentAction = actions.filter(
+            (a) => a.user_id !== data.user.id
+        )[0];
+        opponentActionHistory = [
+            ...opponentActionHistory,
+            opponentAction.action,
+        ];
+    };
+
+    const updateWins = (winner: number) => {
+        if (winner === null) {
+            return;
+        }
+
+        if (winner === data.user.id) {
+            wins = wins + 1;
+        } else {
+            opponentWins = opponentWins + 1;
+        }
+    };
 
     messenger.on("RoundFinished", (payload) => {
-        console.log(payload);
+        updateOpponentHistory(payload.actions);
+        updateWins(payload.winner);
         state = RoomState.Choosing;
     });
     messenger.on("GameFinished", (payload) => {
-        console.log(payload);
+        updateOpponentHistory(payload.actions);
+        updateWins(payload.winner);
+        if (payload.winner === data.user.id) {
+            isWinner = true;
+        }
         state = RoomState.Results;
     });
 
     const makeAction = (action: Action) => {
         state = RoomState.Waiting;
+        actionHistory = [...actionHistory, action];
         messenger.sendMakeAction({ action, room: id });
+    };
+
+    let actionMap = {
+        [Action.Rock]: "✊",
+        [Action.Paper]: "🤚",
+        [Action.Scissors]: "✌️",
     };
 </script>
 
 <div class="background">
     <div class="opponent_info">
         <p>Jonh Doe</p>
-        some text
+        <div>{opponentWins}</div>
+        <div class="history">
+            {#each opponentActionHistory as action}
+                <div class="history_item">{actionMap[action]}</div>
+            {/each}
+        </div>
     </div>
 </div>
 <div>
+    <div />
     {#if state === RoomState.Choosing}
         <div class="card">
             <button on:click={() => makeAction(Action.Rock)}>✊</button>
-            <button on:click={() => makeAction(Action.Paper)}>✌️</button>
-            <button on:click={() => makeAction(Action.Scissors)}>🤚</button>
+            <button on:click={() => makeAction(Action.Paper)}>🤚</button>
+            <button on:click={() => makeAction(Action.Scissors)}>✌️</button>
         </div>
     {:else if state === RoomState.Waiting}
-        <div>Waiting</div>
+        <Loader />
     {:else if state === RoomState.Results}
-        <div>Results</div>
+        <div>{isWinner ? "You won!" : "You lost!"}</div>
     {/if}
+    <div>{wins}</div>
+    <div class="history">
+        {#each actionHistory as action}
+            <div class="history_item">{actionMap[action]}</div>
+        {/each}
+    </div>
 </div>
 
 <style>
@@ -77,5 +133,16 @@
         font-size: 1.3em;
         font-weight: 500;
         margin-top: 25vh;
+    }
+
+    .history {
+        display: flex;
+        justify-content: center;
+    }
+    .history > div {
+        border-radius: 5px;
+        margin: 3px;
+        padding: 2px;
+        background-color: #5c5470;
     }
 </style>

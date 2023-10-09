@@ -4,9 +4,6 @@ import { Messenger } from './lib/ws/Messenger';
 import { WsConnection } from './lib/ws/WsConnection';
 import { parseQuery } from './stores';
 
-const generateRandomId = () => {
-    return Math.floor(Math.random() * 2 ** 16);
-}
 
 let id = parseQuery(window.Telegram.WebApp.initData).user.id
 
