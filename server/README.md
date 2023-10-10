@@ -15,6 +15,7 @@ This command will download, compile all the dependencies alongside the source co
 The server will be accessible on port `8080`. It has one websocket endpoint `/ws/{userId}`
 All communication comes through the websocket connection.
 ## Structure
+```
 ├── Cargo.lock
 ├── Cargo.toml
 └── src
@@ -36,6 +37,7 @@ All communication comes through the websocket connection.
     │   └── ws.rs
     └── websockets.rs
 5 directories, 16 files
+```
 
 ## Actors
 > Actix is built on the Actor Model which allows applications to be written as a group of independently executing but cooperating "Actors" which communicate via messages. Actors are objects which encapsulate state and behavior and run within the Actor System provided by the actix library.
