@@ -8,7 +8,7 @@ import { parseQuery } from './stores';
 let id = parseQuery(window.Telegram.WebApp.initData).user.id
 
 const connection = new WsConnection(
-    { url: `ws://bakuta-ad-dev.man.yp-c.yandex.net:8080/ws/${id}` },
+    { url: `ws://127.0.0.1:8080/ws/${id}` },
 );
 connection.connect()
 
