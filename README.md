@@ -1,8 +1,9 @@
 # Rock Paper Scissors telegram mini app
 Multiplayer realtime game with matchmaking implemented with actor framework.
 
-The repository contains a backend and a frontend projects.
 [Let me try](https://t.me/rpsMiniAppBot)
+
+The repository contains a backend and a frontend projects.
 
 Backend is written using Rust with [Actix and Actix Web](https://actix.rs).
 Frontend — [Svelte](https://svelte.dev) without server-side rendering.
@@ -24,7 +25,7 @@ The server will be accessible on port `8080`. It has one websocket endpoint `/ws
 All communication comes through the websocket connection.
 
 ### Frontend
-You need to have node 18+ installed
+You need to have node 18+ installed.
 [How to install nodejs?](https://nodejs.org/en/download/package-manager)
 ```bash
 cd client
@@ -43,5 +44,5 @@ npm run dev
 The frontend will be accessible on port `5173`.
 
 ## Documentation
-[Frontend](/client/README.md)
-[Frontend](/server/README.md)
+[Frontend](/client/README.md) \
+[Backend](/server/README.md)
