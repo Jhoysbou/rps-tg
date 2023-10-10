@@ -44,5 +44,4 @@ npm run dev
 The frontend will be accessible on port `5173`.
 
 ## Documentation
-[Frontend](/client/README.md) \
 [Backend](/server/README.md)
